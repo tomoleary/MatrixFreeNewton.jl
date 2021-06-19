@@ -2,6 +2,12 @@ using Zygote
 using ElasticArrays
 using LinearAlgebra
 
+struct SFNLogger
+    alpha::Float64
+    losses::AbstractArray{Float64}
+    spectra::AbstractArray{Float64}
+end
+
 
 function sherman_morrison(d_k,U_k,b,gamma)
     """
@@ -14,7 +20,7 @@ function sherman_morrison(d_k,U_k,b,gamma)
 end
 
 function fullSaddleFreeNewton(f,w;hessian="full",alpha=1e0,iterations = 100,verbose = true,
-                                            printing_frequency = 1,history = false)
+                                            printing_frequency = 1,logging = true)
     """
     """
     if verbose
@@ -24,13 +30,16 @@ function fullSaddleFreeNewton(f,w;hessian="full",alpha=1e0,iterations = 100,verb
     if hessian == "full"
         FullHessian(w) = Zygote.hessian(w->f(w),w)
     end
-    if history
-        trace = ElasticArrays.ElasticArray{Float64}(undef, size(w)[1], 0)
-        append!(trace,copy(w))
+    if logging
+        losses = zeros(0)
+        push!(losses,f(w))
+        spectra = ElasticArrays.ElasticArray{Float64}(undef, size(w)[1], 0)
+        logger = SFNLogger(alpha,losses,spectra)
     end
+        
     for i = 1:iterations
-        H_eig = eigen(FullHessian(w),sortby = x -> -abs(x))
-        d = H_eig.values
+        H_eigs = eigen(FullHessian(w),sortby = x -> -abs(x))
+        d = H_eigs.values
         println("Largest eigenvalue is ",d[1])
         U = H_eig.vectors
         dw = U*(diagm(1 ./abs.(d))*(U'gradient(w)))
@@ -39,19 +48,20 @@ function fullSaddleFreeNewton(f,w;hessian="full",alpha=1e0,iterations = 100,verb
             println("At iteration ",i," obj = ",f(w),"\n")
 #             print("w = ",w,"\n")
         end
-        if history
-            append!(trace,copy(w))
+        if logging
+            push!(logger.losses,f(w))
+            append!(logger.spectra,H_eig.values)
         end
     end
-    if history
-        return w,trace
+    if logging
+        return w,logger
     else
         return w,nothing
     end
 end
 
 function lowRankSaddleFreeNewton(f,w;hessian="reduced",alpha=1e0,gamma = 1e-5,rank = 20,iterations = 100,
-                                            verbose = true,printing_frequency = 1,history = false)
+                                            verbose = true,printing_frequency = 1,logging=true)
     """
     """
     @assert rank <= size(w)[1]
@@ -66,38 +76,32 @@ function lowRankSaddleFreeNewton(f,w;hessian="reduced",alpha=1e0,gamma = 1e-5,ra
         # for the lambda function, but other arrays can be passed in later
         matrix = zeros(size(w)[1],1)
         HessianMatrixProduct(w,matrix) = genericHessianMatrixProduct(f,w,matrix)
-    # elseif hessian == "from_gradient"
-    #     throw(DomainError(hessian,"from_gradient not currently working"))
-    #     # For now I am pre-allocating the matrix to be producted with
-    #     # for the lambda function, but other arrays can be passed in later
-    #     matrix = zeros(size(w)[1],1)
-    #     gHessianMatrixProduct(w,matrix) = fastInaccurateHessianFromGradient(gradient,w,matrix)
-    #     # println("HessianMatrixProduct ",HessianMatrixProduct)
-    #     # Hmp(matrix) = HessianMatrixProduct(w,matrix)
-    #     # matrix = zeros(size(w)[1],10)
-    #     # Y = Hmp(matrix)
-    #     # println("size(Y) = ",size(Y))
-    #     # println("Y",Y)
-
+    elseif hessian == "from_gradient"
+        # For now I am pre-allocating the matrix to be producted with
+        # for the lambda function, but other arrays can be passed in later
+        matrix = zeros(size(w)[1],1)
+        try
+            HessianMatrixProduct(w,matrix) = fastInaccurateHessianFromGradient(gradient,w,matrix)
+        catch
+            HessianMatrixProduct(w,matrix) = genericHessianMatrixProduct(f,w,matrix)
+        end
     else
         throw(DomainError(hessian,"invalid choice for hessian"))
     end
-    if history
-        trace = ElasticArrays.ElasticArray{Float64}(undef, size(w)[1], 0)
-        append!(trace,copy(w))
+    if logging
+        losses = zeros(0)
+        push!(losses,f(w))
+        spectra = ElasticArrays.ElasticArray{Float64}(undef, rank, 0)
+        logger = SFNLogger(alpha,losses,spectra)
     end
     for i = 1:iterations
         if hessian == "full"
             H_eigs = eigen(FullHessian(w),sortby = x -> -abs(x))
             d_reduced = H_eigs.values[begin:rank]
             U_reduced = H_eigs.vectors[:,begin:rank]
-        elseif hessian == "reduced"
+        elseif hessian == "reduced" || hessian == "from_gradient"
             Hmp(matrix) = HessianMatrixProduct(w,matrix)
             d_reduced,U_reduced = randomizedEVD(Hmp,size(w)[1],rank)
-        # elseif hessian == "from_gradient"
-        #     throw(DomainError(hessian,"from_gradient not currently working"))
-        #     Hmp(matrix) = gHessianMatrixProduct(w,matrix)
-        #     d_reduced,U_reduced = randomizedEVD(Hmp,size(w)[1],rank)
         end
         # println("Largest eigenvalue = ",d_reduced[1])
         g = gradient(w)
@@ -107,12 +111,13 @@ function lowRankSaddleFreeNewton(f,w;hessian="reduced",alpha=1e0,gamma = 1e-5,ra
             print("At iteration ",i," obj = ",f(w))
             println(" lambda_1 = ",d_reduced[1]," lambda_r = ",d_reduced[end])
         end
-        if history
-            append!(trace,copy(w))
+        if logging
+            push!(logger.losses,f(w))
+            append!(logger.spectra,d_reduced)
         end
     end
-    if history
-        return w,trace
+    if logging
+        return w,logger
     else
         return w,nothing
     end

@@ -1,13 +1,19 @@
 using Zygote
 using ElasticArrays
 
-function fullNewton(f,w;alpha=1e0,iterations = 2,printing_frequency = 1,history = false)
+struct NewtonLogger
+    alpha::Float64
+    losses::AbstractArray{Float64}
+end
+
+function fullNewton(f,w;alpha=1e0,iterations = 2,printing_frequency = 1,logging = true)
     print("At initial guess obj = ",f(w),"\n")
     g_function(w) = Zygote.gradient(w->f(w),w)[1]
     H_function(w) = Zygote.hessian(w->f(w),w)
-    if history
-        trace = ElasticArrays.ElasticArray{Float64}(undef, size(w)[1], 0)
-        append!(trace,copy(w))
+    if logging
+        losses = zeros(0)
+        push!(losses,f(w))
+        logger = NewtonLogger(alpha,losses)
     end
     for i = 1:iterations
         dw = H_function(w)\g_function(w)
@@ -16,13 +22,14 @@ function fullNewton(f,w;alpha=1e0,iterations = 2,printing_frequency = 1,history 
             print("At iteration ",i," obj = ",f(w),"\n")
 #             print("w = ",w,"\n")
         end
-        if history
-            append!(trace,copy(w))
+        if logging
+            push!(logger.losses,f(w))
         end
     end
-    if history
-        return w,trace
+    if logging
+        return w,logger
     else
         return w,nothing
     end
 end
+

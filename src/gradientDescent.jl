@@ -1,14 +1,20 @@
 using Zygote
 using ElasticArrays
 
-function gradientDescent(f,w;alpha=1e0,iterations = 100,verbose = true,printing_frequency = 10,history = false)
+struct GDLogger
+    alpha::Float64
+    losses::AbstractArray{Float64}
+end
+
+function gradientDescent(f,w;alpha=1e0,iterations = 100,verbose = true,printing_frequency = 10,logging = true)
     if verbose
         print("At initial guess obj = ",f(w),"\n")
     end
     gradient(w) = Zygote.gradient(w->f(w),w)[1]
-    if history
-        trace = ElasticArrays.ElasticArray{Float64}(undef, size(w)[1], 0)
-        append!(trace,copy(w))
+    if logging
+        losses = zeros(0)
+        push!(losses,f(w))
+        logger = GDLogger(alpha,losses)
     end
     for i = 1:iterations
         dw = gradient(w)
@@ -16,28 +22,34 @@ function gradientDescent(f,w;alpha=1e0,iterations = 100,verbose = true,printing_
         if (i % printing_frequency == 0) & verbose
             print("At iteration ",i," obj = ",f(w),"\n")
         end
-        if history
-            append!(trace,copy(w))
+        if logging
+            push!(logger.losses,f(w))
         end
     end
-    if history
-        return w,trace
+    if logging
+        return w,logger
     else
         return w,nothing
     end
 end
 
+struct CSGDLogger
+    alphas::AbstractArray{Float64}
+    losses::AbstractArray{Float64}
+end
 
-
-function curvatureScaledGradientDescent(f,w;iterations = 100,verbose = true,printing_frequency = 10,history = false)
+function curvatureScaledGradientDescent(f,w;iterations = 100,verbose = true,printing_frequency = 10,logging = true)
     if verbose
         print("At initial guess obj = ",f(w),"\n")
     end
     gradient(w) = Zygote.gradient(w->f(w),w)[1]
     Hessian(w) = Zygote.hessian(w->f(w),w)
-    if history
-        trace = ElasticArrays.ElasticArray{Float64}(undef, size(w)[1], 0)
-        append!(trace,copy(w))
+    if logging
+        alphas = zeros(0)
+        push!(alphas,0)
+        losses = zeros(0)
+        push!(losses,f(w))
+        logger = CSGDLogger(alphas,losses)
     end
     for i = 1:iterations
         dw = gradient(w)
@@ -47,12 +59,12 @@ function curvatureScaledGradientDescent(f,w;iterations = 100,verbose = true,prin
         if (i % printing_frequency == 0) & verbose
             print("At iteration ",i," obj = ",f(w),"\n")
         end
-        if history
-            append!(trace,copy(w))
+        if logging
+            push!(logger.losses,f(w))
         end
     end
-    if history
-        return w,trace
+    if logging
+        return w,logger
     else
         return w,nothing
     end
