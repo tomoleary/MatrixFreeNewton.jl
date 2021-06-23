@@ -1,5 +1,5 @@
 
-module ScalableNewton
+module MatrixFreeNewton
 	using Zygote
 	using ElasticArrays
 	using SparseDiffTools

@@ -1,4 +1,4 @@
-name = "ScalableNewton"
+name = "MatrixFreeNewton"
 uuid = "6fae04a5-42e9-4d0c-90a8-26d1a9434b6c"
 authors = ["Tom O'Leary-Roseberry <tom.olearyroseberry@utexas.edu> and contributors"]
 version = "0.0.1"
