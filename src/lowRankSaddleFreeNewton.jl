@@ -95,7 +95,11 @@ function lowRankSaddleFreeNewton(f,w;hessian="matrix_free",alpha=1e0,gamma = 1e-
     if logging
         losses = zeros(0)
         push!(losses,f(w))
-        spectra = ElasticArrays.ElasticArray{Float64}(undef, rank, 0)
+        if log_full_spectrum
+            spectra = ElasticArrays.ElasticArray{Float64}(undef, size(w)[1], 0)
+        else
+            spectra = ElasticArrays.ElasticArray{Float64}(undef, rank, 0)
+        end
         logger = SFNLogger(alpha,rank,losses,spectra)
     end
     for i = 1:iterations
