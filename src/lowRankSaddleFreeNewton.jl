@@ -61,7 +61,7 @@ function fullSaddleFreeNewton(f,w;hessian="full",alpha=1e0,iterations = 100,verb
     end
 end
 
-function lowRankSaddleFreeNewton(f,w;hessian="matrix_free",alpha=1e0,gamma = 1e-5,rank = 20,iterations = 100,
+function lowRankSaddleFreeNewton(f,w;hessian="matrix_free",alpha=1e0,gamma = 1e-4,rank = 20,iterations = 100,
                                             verbose = true,printing_frequency = 10,logging=true,log_full_spectrum = false)
     """
     """
