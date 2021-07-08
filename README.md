@@ -1,6 +1,5 @@
 			Prototyping of matrix free Newton methods in Julia
 
-
       ___           ___                       ___                       ___       
      /__/\         /  /\          ___        /  /\        ___          /__/|      
     |  |::\       /  /::\        /  /\      /  /::\      /  /\        |  |:|      
@@ -34,10 +33,6 @@
    \  \:\        \  \:\/:/     \  \:\/:/        \  \:\   \  \:\/:/     \  \:\     
     \  \:\        \  \::/       \  \::/          \__\/    \  \::/       \  \:\    
      \__\/         \__\/         \__\/                     \__\/         \__\/    
-
-
-
-
 
 [![DOI](https://zenodo.org/badge/378233621.svg)](https://zenodo.org/badge/latestdoi/378233621)
 [![License](https://img.shields.io/github/license/tomoleary/MatrixFreeNewton.jl)](./LICENSE)
