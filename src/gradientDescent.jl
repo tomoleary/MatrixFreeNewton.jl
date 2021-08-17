@@ -21,9 +21,11 @@ using ElasticArrays
 struct GDLogger
     alpha::Float64
     losses::AbstractArray{Float64}
+    spectra::AbstractArray{Float64}
 end
 
-function gradientDescent(f,w;alpha=1e0,iterations = 100,verbose = true,printing_frequency = 10,logging = true)
+function gradientDescent(f,w;alpha=1e0,iterations = 100,verbose = true,printing_frequency = 10,
+                                                            logging = true,log_full_spectrum = false)
     if verbose
         print("At initial guess obj = ",f(w),"\n")
     end
@@ -31,7 +33,12 @@ function gradientDescent(f,w;alpha=1e0,iterations = 100,verbose = true,printing_
     if logging
         losses = zeros(0)
         push!(losses,f(w))
-        logger = GDLogger(alpha,losses)
+        d = size(w)[1]
+        spectra = ElasticArrays.ElasticArray{Float64}(undef, d, 0)
+        logger = GDLogger(alpha,losses,spectra)
+        if log_full_spectrum
+            Hessian(w) = Zygote.hessian(w->f(w),w)
+        end
     end
     for i = 1:iterations
         dw = gradient(w)
@@ -41,6 +48,10 @@ function gradientDescent(f,w;alpha=1e0,iterations = 100,verbose = true,printing_
         end
         if logging
             push!(logger.losses,f(w))
+            if log_full_spectrum
+                H_eig = eigen(Hessian(w),sortby = x -> -abs(x))
+                append!(logger.spectra,H_eig.values)
+            end
         end
     end
     if logging
@@ -53,9 +64,11 @@ end
 struct CSGDLogger
     alphas::AbstractArray{Float64}
     losses::AbstractArray{Float64}
+    spectra::AbstractArray{Float64}
 end
 
-function curvatureScaledGradientDescent(f,w;iterations = 100,verbose = true,printing_frequency = 10,logging = true)
+function curvatureScaledGradientDescent(f,w;iterations = 100,verbose = true,printing_frequency = 10,
+                                                                logging = true,log_full_spectrum = false)
     if verbose
         print("At initial guess obj = ",f(w),"\n")
     end
@@ -66,7 +79,9 @@ function curvatureScaledGradientDescent(f,w;iterations = 100,verbose = true,prin
         push!(alphas,0)
         losses = zeros(0)
         push!(losses,f(w))
-        logger = CSGDLogger(alphas,losses)
+        d = size(w)[1]
+        spectra = ElasticArrays.ElasticArray{Float64}(undef, d, 0)
+        logger = CSGDLogger(alphas,losses,spectra)
     end
     for i = 1:iterations
         dw = gradient(w)
@@ -78,6 +93,9 @@ function curvatureScaledGradientDescent(f,w;iterations = 100,verbose = true,prin
         end
         if logging
             push!(logger.losses,f(w))
+            if log_full_spectrum
+                append!(logger.spectra,H_eig.values)
+            end
         end
     end
     if logging

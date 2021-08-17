@@ -37,17 +37,19 @@ loggers_csgd = Dict()
 loggers_newton = Dict()
 loggers_sfn = Dict()
 
+log_spectra_gd = true
+
 
 for seed in 0:10
     random_state = Random.MersenneTwister(seed)
     x_0 = randn(random_state,n)
 
     println("Now for gradient descent ")
-    w_star_gd,logger_gd = gradientDescent(michalewicz,x_0,iterations = iterations)
+    w_star_gd,logger_gd = gradientDescent(michalewicz,x_0,iterations = iterations,log_full_spectrum = log_spectra_gd)
     loggers_gd[seed] = logger_gd
 
     println("Now for curvature gradient descent ")
-    w_star_gd,logger_csgd = curvatureScaledGradientDescent(michalewicz,x_0,iterations = iterations)
+    w_star_gd,logger_csgd = curvatureScaledGradientDescent(michalewicz,x_0,iterations = iterations,log_full_spectrum = log_spectra_gd)
     loggers_csgd[seed] = logger_csgd
 
     print("Now for Newton \n")
@@ -102,6 +104,11 @@ for (optimizer,logger_dict) in zip(optimizers,logger_dicts)
         # If csgd save alphas
         if optimizer in ["csgd"]
             npzwrite(data_dir*name*"_alphas.npy",logger.alphas)
+        end
+        if log_spectra_gd
+            if optimizer in ["gd","csgd"]
+                npzwrite(data_dir*name*"_spectra.npy",logger.spectra)
+            end
         end
     end
     println("Min min loss = ",minimum(opt_losses))
